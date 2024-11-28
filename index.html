@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Practice</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Midterm Exam Practice</h1>
+    </header>
+    <main>
+        <div id="question-container">
+            <h2 id="question-title">Question 1</h2>
+            <p id="question-text"></p>
+            <ul id="options"></ul>
+        </div>
+        <div id="actions">
+            <button id="previous" onclick="previousQuestion()">Previous</button>
+            <button id="next" onclick="nextQuestion()">Next</button>
+            <button id="submit" onclick="submitExam()">Submit</button>
+        </div>
+        <div id="explanation">
+            <h3>Explanation</h3>
+            <p id="explanation-text"></p>
+        </div>
+    </main>
+    <script src="script.js"></script>
+</body>
+
