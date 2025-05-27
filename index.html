@@ -3,29 +3,997 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exam Practice</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <header>
-        <h1>Midterm Exam Practice</h1>
-    </header>
-    <main>
-        <div id="question-container">
-            <h2 id="question-title">Question 1</h2>
-            <p id="question-text"></p>
-            <ul id="options"></ul>
-        </div>
-        <div id="actions">
-            <button id="previous" onclick="previousQuestion()">Previous</button>
-            <button id="next" onclick="nextQuestion()">Next</button>
-            <button id="submit" onclick="submitExam()">Submit</button>
-        </div>
-        <div id="explanation">
-            <h3>Explanation</h3>
-            <p id="explanation-text"></p>
-        </div>
-    </main>
-    <script src="script.js"></script>
-</body>
+    <title>Interactive Data Structures Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices:
+        - Intro: Text. Goal: Overview.
+        - Linked Lists: HTML/CSS divs for nodes/pointers. JS for dynamic add/remove/link changes. Buttons for insert/delete. Goal: Visualize node manipulation.
+        - Stacks: HTML/CSS vertical divs. JS for push/pop visualization. Buttons/input for operations. Goal: Demonstrate LIFO.
+        - Queues: HTML/CSS horizontal divs. JS for enqueue/dequeue visualization. Buttons/input for operations. Goal: Demonstrate FIFO.
+        - Trees (BST): HTML/CSS divs for nodes, simple lines/positioning for hierarchy. JS for insert/delete/search visualization. Buttons/input for operations. Dropdown for traversals (text output). Goal: Visualize hierarchical structure and BST operations.
+        - Graphs: HTML/CSS divs for vertices, simple lines/positioning for edges. JS for add vertex/edge, DFS/BFS visualization (highlighting visited). Buttons/input for operations. Dropdown for traversals (text output). Goal: Visualize network structure and traversal algorithms.
+        - All Code: C++ snippets from source in <pre><code>. Goal: Connect visual to code.
+        - All Logs: Text output for operation results. Goal: Provide feedback.
+        - Justification: Interactive HTML/CSS/JS chosen for direct manipulation and understanding of structure changes. Chart.js not used as data is structural, not quantitative for charting. No SVG/Mermaid as per constraints. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .sidebar-link { display: block; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 0.375rem; transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out; }
+        .sidebar-link:hover { background-color: #f0f9ff; color: #0ea5e9; } /* light-blue-50, sky-500 */
+        .sidebar-link.active-nav { background-color: #0ea5e9; color: white; } /* sky-500 */
+        .sidebar-sublink { display: block; padding: 0.5rem 1rem 0.5rem 2rem; margin-bottom: 0.25rem; border-radius: 0.375rem; transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out; font-size: 0.9rem;}
+        .sidebar-sublink:hover { background-color: #f0f9ff; color: #0ea5e9; }
+        .sidebar-sublink.active-nav { background-color: #38bdf8; color: white; } /* sky-400 */
 
+        .code-block { background-color: #1f2937; color: #d1d5db; padding: 1rem; border-radius: 0.375rem; overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.875rem; margin-top:1rem; margin-bottom:1rem; }
+        .visual-container { min-height: 150px; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; background-color: #f9fafb; overflow-x: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .node { background-color: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; text-align: center; min-width: 50px; position: relative; margin: 5px;}
+        .node-arrow { margin: 0 5px; color: #6b7280; }
+        .stack-element { background-color: #10b981; color: white; padding: 0.5rem; border: 1px solid #059669; margin-bottom: -1px; width: 100px; text-align: center; }
+        .queue-element { background-color: #ef4444; color: white; padding: 0.5rem; border: 1px solid #dc2626; margin-right: -1px; min-width: 60px; text-align: center; }
+        .log-output { background-color: #f3f4f6; border: 1px solid #e5e7eb; padding: 0.75rem; border-radius: 0.375rem; min-height: 100px; font-family: 'Courier New', Courier, monospace; font-size: 0.875rem; white-space: pre-wrap; overflow-y: auto; max-height: 200px;}
+        .control-group { margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .control-group input[type="number"], .control-group input[type="text"], .control-group select { padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; }
+        .control-group button { padding: 0.5rem 1rem; background-color: #0ea5e9; color: white; border-radius: 0.375rem; transition: background-color 0.2s; }
+        .control-group button:hover { background-color: #0284c7; }
+        .tree-node {
+            background-color: #8b5cf6; color: white; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            margin: 10px; position: relative;
+        }
+        .tree-container { display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-x: auto; }
+        .tree-level { display: flex; justify-content: center; margin-bottom: 40px; }
+        .tree-node-wrapper { display: flex; flex-direction: column; align-items: center; margin: 0 10px; position: relative; }
+
+        /* Basic line styling for trees/graphs - can be improved */
+        .line {
+            position: absolute;
+            background-color: #9ca3af;
+            z-index: -1;
+        }
+        .graph-vertex {
+            background-color: #f59e0b; color: white; padding: 0.75rem; border-radius: 50%;
+            width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
+            position: absolute; /* For manual positioning in demo */
+        }
+        #graphVisualContainer { position: relative; min-height: 300px; border: 1px solid #e5e7eb; background-color: #f9fafb; border-radius: 0.375rem; }
+    </style>
+</head>
+<body class="bg-stone-100 text-neutral-800">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-amber-50 p-4 shadow-lg fixed top-0 left-0 h-full overflow-y-auto">
+            <h1 class="text-2xl font-bold text-neutral-700 mb-6">Data Structures</h1>
+            <nav id="sidebarNav">
+                <a href="#introduction" class="sidebar-link active-nav">Introduction</a>
+                <div>
+                    <span class="font-semibold text-neutral-600 block px-4 py-2 mt-2">Linear Structures</span>
+                    <a href="#linked-lists" class="sidebar-sublink">Linked Lists</a>
+                    <a href="#stacks" class="sidebar-sublink">Stacks</a>
+                    <a href="#queues" class="sidebar-sublink">Queues</a>
+                </div>
+                <div>
+                    <span class="font-semibold text-neutral-600 block px-4 py-2 mt-2">Non-Linear Structures</span>
+                    <a href="#trees" class="sidebar-sublink">Trees (BST)</a>
+                    <a href="#graphs" class="sidebar-sublink">Graphs</a>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="flex-1 ml-64 p-6 md:p-10 bg-stone-100">
+            <section id="introduction" class="content-section active">
+                <h2 class="text-3xl font-semibold text-neutral-700 mb-4">Introduction to Data Structures</h2>
+                <p class="mb-4 text-lg">
+                    Welcome to the Interactive Data Structures Explorer! This application provides an overview of fundamental data structures,
+                    their operations, and C++ code implementations. Data structures are essential tools for organizing and managing data
+                    efficiently in computer science.
+                </p>
+                <p class="mb-4">
+                    Data structures are not programming languages themselves but rather a set of algorithms and organizational principles
+                    that can be applied in any language. They form the building blocks for many complex software systems.
+                </p>
+                <p>
+                    Use the sidebar to navigate through different data structures. Each section includes:
+                </p>
+                <ul class="list-disc list-inside ml-4 my-2">
+                    <li>A conceptual explanation.</li>
+                    <li>An interactive visualization to demonstrate its operations.</li>
+                    <li>Relevant C++ code snippets.</li>
+                    <li>A log to see the results of your interactions.</li>
+                </ul>
+                <p>
+                    This interactive approach is designed to help you understand how these structures work internally and how their
+                    operations affect their state.
+                </p>
+            </section>
+
+            <section id="linked-lists" class="content-section">
+                <h2 class="text-3xl font-semibold text-neutral-700 mb-4">Linked Lists</h2>
+                <p class="mb-4">A linked list is a linear data structure where elements (nodes) are stored at non-contiguous memory locations. Each node contains data and a pointer to the next node. This explorer focuses on Singly Linked Lists.</p>
+
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Interactive Demo: Singly Linked List</h3>
+                    <div class="control-group">
+                        <input type="number" id="llValue" placeholder="Value" class="mr-2">
+                        <button onclick="llInsertAtBeginning()" class="bg-teal-600 hover:bg-teal-700">Insert at Beginning</button>
+                        <button onclick="llInsertAtEnd()" class="bg-teal-600 hover:bg-teal-700">Insert at End</button>
+                    </div>
+                    <div class="control-group">
+                        <input type="number" id="llPrevValue" placeholder="Prev Value" class="mr-2">
+                        <input type="number" id="llNewValue" placeholder="New Value" class="mr-2">
+                        <button onclick="llInsertAfterNodeP()" class="bg-teal-600 hover:bg-teal-700">Insert After Node</button>
+                    </div>
+                     <div class="control-group">
+                        <button onclick="llDeleteFromBeginning()" class="bg-red-500 hover:bg-red-600">Delete from Beginning</button>
+                        <input type="number" id="llDeleteValue" placeholder="Value to Delete" class="ml-2 mr-2">
+                        <button onclick="llDeleteNodeP()" class="bg-red-500 hover:bg-red-600">Delete Node</button>
+                    </div>
+
+                    <h4 class="text-md font-semibold mt-4 mb-2">Visual Representation:</h4>
+                    <div id="llVisualContainer" class="visual-container">List is empty.</div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-xl font-semibold mb-3">C++ Code Snippet</h3>
+                    <p class="mb-2 text-sm text-neutral-600">Relevant C++ code for the performed operation will appear here.</p>
+                    <div id="llCodeOutput" class="code-block">Select an operation to see the code.</div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-3">Operation Log</h3>
+                    <div id="llLogOutput" class="log-output">Interactions will be logged here.</div>
+                </div>
+            </section>
+
+            <section id="stacks" class="content-section">
+                <h2 class="text-3xl font-semibold text-neutral-700 mb-4">Stacks</h2>
+                <p class="mb-4">A stack is a linear data structure that follows the LIFO (Last-In-First-Out) principle. Insertions (push) and deletions (pop) occur only at one end, called the top.</p>
+
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Interactive Demo: Stack</h3>
+                    <div class="control-group">
+                        <input type="number" id="stackValue" placeholder="Value to Push" class="mr-2">
+                        <button onclick="stackPush()" class="bg-teal-600 hover:bg-teal-700">Push</button>
+                        <button onclick="stackPop()" class="bg-red-500 hover:bg-red-600 ml-2">Pop</button>
+                        <button onclick="stackPeek()" class="bg-sky-500 hover:bg-sky-600 ml-2">Peek</button>
+                    </div>
+                    <h4 class="text-md font-semibold mt-4 mb-2">Visual Representation (Top to Bottom):</h4>
+                    <div id="stackVisualContainer" class="visual-container flex-col items-start">Stack is empty.</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                     <h3 class="text-xl font-semibold mb-3">C++ Code Snippet</h3>
+                     <div id="stackCodeOutput" class="code-block">Select an operation to see the code.</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-3">Operation Log</h3>
+                    <div id="stackLogOutput" class="log-output">Interactions will be logged here.</div>
+                </div>
+            </section>
+
+            <section id="queues" class="content-section">
+                <h2 class="text-3xl font-semibold text-neutral-700 mb-4">Queues</h2>
+                <p class="mb-4">A queue is a linear data structure that follows the FIFO (First-In-First-Out) principle. Elements are inserted (enqueue) at the rear and deleted (dequeue) from the front.</p>
+                 <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Interactive Demo: Queue</h3>
+                    <div class="control-group">
+                        <input type="number" id="queueValue" placeholder="Value to Enqueue" class="mr-2">
+                        <button onclick="queueEnqueue()" class="bg-teal-600 hover:bg-teal-700">Enqueue</button>
+                        <button onclick="queueDequeue()" class="bg-red-500 hover:bg-red-600 ml-2">Dequeue</button>
+                        <button onclick="queueFront()" class="bg-sky-500 hover:bg-sky-600 ml-2">Front</button>
+                    </div>
+                    <h4 class="text-md font-semibold mt-4 mb-2">Visual Representation (Front to Rear):</h4>
+                    <div id="queueVisualContainer" class="visual-container">Queue is empty.</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                     <h3 class="text-xl font-semibold mb-3">C++ Code Snippet</h3>
+                     <div id="queueCodeOutput" class="code-block">Select an operation to see the code.</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-3">Operation Log</h3>
+                    <div id="queueLogOutput" class="log-output">Interactions will be logged here.</div>
+                </div>
+            </section>
+
+            <section id="trees" class="content-section">
+                <h2 class="text-3xl font-semibold text-neutral-700 mb-4">Trees (Binary Search Tree)</h2>
+                <p class="mb-4">A tree is a hierarchical data structure. A Binary Search Tree (BST) is an ordered binary tree where each node's left child is smaller and the right child is larger. This section demonstrates BST operations.</p>
+                 <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Interactive Demo: BST</h3>
+                    <div class="control-group">
+                        <input type="number" id="bstValue" placeholder="Value" class="mr-2">
+                        <button onclick="bstInsert()" class="bg-teal-600 hover:bg-teal-700">Insert</button>
+                        <button onclick="bstSearchP()" class="bg-sky-500 hover:bg-sky-600">Search</button>
+                        <button onclick="bstDeleteP()" class="bg-red-500 hover:bg-red-600">Delete</button>
+                    </div>
+                    <div class="control-group mt-2">
+                        <span class="mr-2">Traversal:</span>
+                        <button onclick="bstInorder()" class="bg-indigo-500 hover:bg-indigo-600">Inorder</button>
+                        <button onclick="bstPreorder()" class="bg-indigo-500 hover:bg-indigo-600">Preorder</button>
+                        <button onclick="bstPostorder()" class="bg-indigo-500 hover:bg-indigo-600">Postorder</button>
+                    </div>
+                    <h4 class="text-md font-semibold mt-4 mb-2">Visual Representation (Simplified):</h4>
+                    <div id="bstVisualContainer" class="visual-container tree-container">Tree is empty.</div>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow mb-6">
+                     <h3 class="text-xl font-semibold mb-3">C++ Code Snippet</h3>
+                     <div id="bstCodeOutput" class="code-block">Select an operation to see the code.</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-3">Operation Log</h3>
+                    <div id="bstLogOutput" class="log-output">Interactions will be logged here.</div>
+                </div>
+            </section>
+
+            <section id="graphs" class="content-section">
+                <h2 class="text-3xl font-semibold text-neutral-700 mb-4">Graphs</h2>
+                <p class="mb-4">A graph is a non-linear data structure consisting of vertices (nodes) and edges that connect them. Unlike trees, graphs can have cycles. This section demonstrates basic graph operations using an adjacency list.</p>
+                <div class="bg-white p-6 rounded-lg shadow mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Interactive Demo: Graph</h3>
+                    <div class="control-group">
+                        <input type="number" id="graphVertexValue" placeholder="Vertex ID" class="mr-2">
+                        <button onclick="graphAddVertexP()" class="bg-teal-600 hover:bg-teal-700">Add Vertex</button>
+                    </div>
+                    <div class="control-group">
+                        <input type="number" id="graphEdgeFrom" placeholder="From Vertex" class="mr-2">
+                        <input type="number" id="graphEdgeTo" placeholder="To Vertex" class="mr-2">
+                        <button onclick="graphAddEdgeP()" class="bg-teal-600 hover:bg-teal-700">Add Edge (Undirected)</button>
+                    </div>
+                     <div class="control-group mt-2">
+                        <input type="number" id="graphStartVertex" placeholder="Start Vertex for Traversal" class="mr-2">
+                        <button onclick="graphDFSP()" class="bg-indigo-500 hover:bg-indigo-600">DFS</button>
+                        <button onclick="graphBFSP()" class="bg-indigo-500 hover:bg-indigo-600">BFS</button>
+                    </div>
+                    <h4 class="text-md font-semibold mt-4 mb-2">Visual Representation (Simplified - Vertices Only):</h4>
+                    <div id="graphVisualContainer" class="visual-container relative min-h-[200px]">Graph is empty.</div>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow mb-6">
+                     <h3 class="text-xl font-semibold mb-3">C++ Code Snippet</h3>
+                     <div id="graphCodeOutput" class="code-block">Select an operation to see the code.</div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-3">Operation Log</h3>
+                    <div id="graphLogOutput" class="log-output">Interactions will be logged here.</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // --- Navigation ---
+        const navLinks = document.querySelectorAll('#sidebarNav a');
+        const contentSections = document.querySelectorAll('.content-section');
+
+        function updateActiveNav(hash) {
+            navLinks.forEach(link => {
+                link.classList.remove('active-nav');
+                if (link.getAttribute('href') === hash) {
+                    link.classList.add('active-nav');
+                }
+            });
+            contentSections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === hash.substring(1)) {
+                    section.classList.add('active');
+                }
+            });
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                const targetId = this.getAttribute('href');
+                updateActiveNav(targetId);
+            });
+        });
+
+        // Initial active section based on URL hash or default
+        if (window.location.hash) {
+            updateActiveNav(window.location.hash);
+        } else {
+            updateActiveNav('#introduction');
+        }
+        window.addEventListener('hashchange', () => updateActiveNav(window.location.hash));
+
+
+        // --- Generic Log Function ---
+        function logOperation(logOutputId, message) {
+            const logOutput = document.getElementById(logOutputId);
+            const time = new Date().toLocaleTimeString();
+            logOutput.innerHTML += `[${time}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function displayCode(codeOutputId, code) {
+            document.getElementById(codeOutputId).textContent = code.trim();
+        }
+
+        // --- Linked List Logic ---
+        let llHead = null;
+        const llLog = (msg) => logOperation('llLogOutput', msg);
+        const llCode = (code) => displayCode('llCodeOutput', code);
+
+        function llRender() {
+            const container = document.getElementById('llVisualContainer');
+            container.innerHTML = '';
+            if (!llHead) {
+                container.textContent = 'List is empty.';
+                return;
+            }
+            let current = llHead;
+            while (current) {
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = 'node';
+                nodeDiv.textContent = current.data;
+                container.appendChild(nodeDiv);
+                if (current.next) {
+                    const arrowSpan = document.createElement('span');
+                    arrowSpan.className = 'node-arrow';
+                    arrowSpan.textContent = '→';
+                    container.appendChild(arrowSpan);
+                }
+                current = current.next;
+            }
+            if (llHead) { // Add NULL at the end if list is not empty
+                 const nullSpan = document.createElement('span');
+                 nullSpan.className = 'node-arrow';
+                 nullSpan.textContent = '→ NULL';
+                 container.appendChild(nullSpan);
+            }
+        }
+
+        function llInsertAtBeginning() {
+            const value = parseInt(document.getElementById('llValue').value);
+            if (isNaN(value)) { llLog('Invalid input for value.'); return; }
+            const newNode = { data: value, next: llHead };
+            llHead = newNode;
+            llLog(`Inserted ${value} at the beginning.`);
+            llRender();
+            llCode(`
+void insertAtBeginning(int data) {
+    Node* newNode = new Node(data);
+    newNode->next = head;
+    head = newNode;
+}`);
+        }
+
+        function llInsertAtEnd() {
+            const value = parseInt(document.getElementById('llValue').value);
+            if (isNaN(value)) { llLog('Invalid input for value.'); return; }
+            const newNode = { data: value, next: null };
+            if (!llHead) {
+                llHead = newNode;
+            } else {
+                let current = llHead;
+                while (current.next) {
+                    current = current.next;
+                }
+                current.next = newNode;
+            }
+            llLog(`Inserted ${value} at the end.`);
+            llRender();
+            llCode(`
+void insertAtEnd(int data) {
+    Node* newNode = new Node(data);
+    if (head == nullptr) {
+        head = newNode;
+        return;
+    }
+    Node* current = head;
+    while (current->next != nullptr) {
+        current = current->next;
+    }
+    current->next = newNode;
+}`);
+        }
+
+        function llInsertAfterNodeP() {
+            const prevValue = parseInt(document.getElementById('llPrevValue').value);
+            const newValue = parseInt(document.getElementById('llNewValue').value);
+            if (isNaN(prevValue) || isNaN(newValue)) { llLog('Invalid input for previous or new value.'); return; }
+
+            let current = llHead;
+            while(current && current.data !== prevValue) {
+                current = current.next;
+            }
+            if (!current) {
+                llLog(`Node with data ${prevValue} not found.`);
+                return;
+            }
+            const newNode = { data: newValue, next: current.next };
+            current.next = newNode;
+            llLog(`Inserted ${newValue} after node ${prevValue}.`);
+            llRender();
+            llCode(`
+void insertAfterNode(int prevData, int newData) {
+    Node* current = head;
+    while (current != nullptr && current->data != prevData) {
+        current = current->next;
+    }
+    if (current == nullptr) return; // Node not found
+    Node* newNode = new Node(newData);
+    newNode->next = current->next;
+    current->next = newNode;
+}`);
+        }
+
+        function llDeleteFromBeginning() {
+            if (!llHead) {
+                llLog('List is empty. Nothing to delete.');
+                return;
+            }
+            const deletedData = llHead.data;
+            llHead = llHead.next;
+            llLog(`Deleted ${deletedData} from the beginning.`);
+            llRender();
+            llCode(`
+void deleteFromBeginning() {
+    if (head == nullptr) return;
+    Node* temp = head;
+    head = head->next;
+    delete temp;
+}`);
+        }
+
+        function llDeleteNodeP() {
+            const value = parseInt(document.getElementById('llDeleteValue').value);
+            if (isNaN(value)) { llLog('Invalid input for value to delete.'); return; }
+
+            if (!llHead) {
+                llLog('List is empty.');
+                return;
+            }
+            if (llHead.data === value) {
+                llHead = llHead.next;
+                llLog(`Deleted ${value} from the list.`);
+                llRender();
+                llCode(`// Deleting head case
+if (head->data == data) {
+    Node* temp = head;
+    head = head->next;
+    delete temp;
+    return;
+}`);
+                return;
+            }
+            let current = llHead;
+            let prev = null;
+            while(current && current.data !== value) {
+                prev = current;
+                current = current.next;
+            }
+            if (!current) {
+                llLog(`Node with data ${value} not found.`);
+                return;
+            }
+            prev.next = current.next;
+            llLog(`Deleted ${value} from the list.`);
+            llRender();
+            llCode(`
+Node* current = head;
+Node* prev = nullptr;
+while (current != nullptr && current->data != data) {
+    prev = current;
+    current = current->next;
+}
+if (current == nullptr) return; // Not found
+prev->next = current->next;
+delete current;`);
+        }
+
+
+        // --- Stack Logic ---
+        let stackElements = [];
+        const stackCapacity = 5; // For demo purposes
+        const stackLog = (msg) => logOperation('stackLogOutput', msg);
+        const stackCode = (code) => displayCode('stackCodeOutput', code);
+
+        function stackRender() {
+            const container = document.getElementById('stackVisualContainer');
+            container.innerHTML = '';
+            if (stackElements.length === 0) {
+                container.textContent = 'Stack is empty.';
+                return;
+            }
+            // Render top to bottom
+            for (let i = stackElements.length - 1; i >= 0; i--) {
+                const elDiv = document.createElement('div');
+                elDiv.className = 'stack-element';
+                elDiv.textContent = stackElements[i];
+                if (i === stackElements.length - 1) {
+                    elDiv.textContent += ' (TOP)';
+                    elDiv.classList.add('bg-green-600'); // Highlight top
+                }
+                container.appendChild(elDiv);
+            }
+        }
+
+        function stackPush() {
+            const value = parseInt(document.getElementById('stackValue').value);
+            if (isNaN(value)) { stackLog('Invalid input.'); return; }
+            if (stackElements.length >= stackCapacity) {
+                stackLog('Stack Overflow! Cannot push ' + value);
+                stackCode(`// Check for isFull() before push`);
+                return;
+            }
+            stackElements.push(value);
+            stackLog(`Pushed ${value} onto the stack.`);
+            stackRender();
+            stackCode(`
+void push(int data) {
+    if (isFull()) { /* Overflow */ return; }
+    top++;
+    elements.push_back(data); // Or elements[top] = data; for fixed array
+}`);
+        }
+
+        function stackPop() {
+            if (stackElements.length === 0) {
+                stackLog('Stack Underflow! Cannot pop.');
+                stackCode(`// Check for isEmpty() before pop`);
+                return;
+            }
+            const value = stackElements.pop();
+            stackLog(`Popped ${value} from the stack.`);
+            stackRender();
+            stackCode(`
+int pop() {
+    if (isEmpty()) { /* Underflow */ throw std::out_of_range("Stack empty"); }
+    int data = elements[top];
+    elements.pop_back(); // Or just top--; for fixed array
+    top--;
+    return data;
+}`);
+        }
+
+        function stackPeek() {
+            if (stackElements.length === 0) {
+                stackLog('Stack is empty. No top element.');
+                stackCode(`// Check for isEmpty() before peek`);
+                return;
+            }
+            const value = stackElements[stackElements.length - 1];
+            stackLog(`Top element is ${value}.`);
+            stackCode(`
+int peek() const {
+    if (isEmpty()) { /* Empty */ throw std::out_of_range("Stack empty"); }
+    return elements[top];
+}`);
+        }
+
+        // --- Queue Logic ---
+        let queueElements = [];
+        const queueCapacity = 5; // For demo purposes
+        const queueLog = (msg) => logOperation('queueLogOutput', msg);
+        const queueCode = (code) => displayCode('queueCodeOutput', code);
+
+        function queueRender() {
+            const container = document.getElementById('queueVisualContainer');
+            container.innerHTML = '';
+            if (queueElements.length === 0) {
+                container.textContent = 'Queue is empty.';
+                return;
+            }
+            queueElements.forEach((el, index) => {
+                const elDiv = document.createElement('div');
+                elDiv.className = 'queue-element';
+                elDiv.textContent = el;
+                if (index === 0) elDiv.textContent += ' (Front)';
+                if (index === queueElements.length -1) elDiv.textContent += ' (Rear)';
+                container.appendChild(elDiv);
+            });
+        }
+
+        function queueEnqueue() {
+            const value = parseInt(document.getElementById('queueValue').value);
+            if (isNaN(value)) { queueLog('Invalid input.'); return; }
+            if (queueElements.length >= queueCapacity) {
+                queueLog('Queue is full! Cannot enqueue ' + value);
+                queueCode(`// Check for isFull() if using fixed-size array`);
+                return;
+            }
+            queueElements.push(value);
+            queueLog(`Enqueued ${value} to the queue.`);
+            queueRender();
+            queueCode(`
+void enqueue(int data) {
+    elements.push_back(data);
+}`);
+        }
+
+        function queueDequeue() {
+            if (queueElements.length === 0) {
+                queueLog('Queue is empty. Cannot dequeue.');
+                queueCode(`// Check for isEmpty() before dequeue`);
+                return;
+            }
+            const value = queueElements.shift(); // Removes from front
+            queueLog(`Dequeued ${value} from the queue.`);
+            queueRender();
+            queueCode(`
+int dequeue() {
+    if (isEmpty()) { /* Empty */ throw std::out_of_range("Queue empty"); }
+    int data = elements.front();
+    elements.erase(elements.begin());
+    return data;
+}`);
+        }
+
+        function queueFront() {
+             if (queueElements.length === 0) {
+                queueLog('Queue is empty. No front element.');
+                queueCode(`// Check for isEmpty() before front()`);
+                return;
+            }
+            const value = queueElements[0];
+            queueLog(`Front element is ${value}.`);
+            queueCode(`
+int front() const {
+    if (isEmpty()) { /* Empty */ throw std::out_of_range("Queue empty"); }
+    return elements.front();
+}`);
+        }
+
+
+        // --- BST Logic ---
+        let bstRoot = null;
+        const bstLog = (msg) => logOperation('bstLogOutput', msg);
+        const bstCode = (code) => displayCode('bstCodeOutput', code);
+
+        function createTreeNodeDiv(node) {
+            const div = document.createElement('div');
+            div.className = 'tree-node';
+            div.textContent = node.data;
+            return div;
+        }
+
+        function bstRenderRecursive(node, levelContainer) {
+            if (!node) return null;
+
+            const nodeWrapper = document.createElement('div');
+            nodeWrapper.className = 'tree-node-wrapper';
+            
+            const nodeDiv = createTreeNodeDiv(node);
+            nodeWrapper.appendChild(nodeDiv);
+            levelContainer.appendChild(nodeWrapper);
+
+            if (node.left || node.right) {
+                const nextLevelContainer = document.createElement('div');
+                nextLevelContainer.className = 'tree-level';
+                
+                const leftNodeDiv = bstRenderRecursive(node.left, nextLevelContainer);
+                const rightNodeDiv = bstRenderRecursive(node.right, nextLevelContainer);
+
+                if(nextLevelContainer.hasChildNodes()){
+                    nodeWrapper.appendChild(nextLevelContainer);
+                }
+            }
+            return nodeDiv;
+        }
+        
+        function bstRender() {
+            const container = document.getElementById('bstVisualContainer');
+            container.innerHTML = '';
+            if (!bstRoot) {
+                container.textContent = 'Tree is empty.';
+                return;
+            }
+            const firstLevelContainer = document.createElement('div');
+            firstLevelContainer.className = 'tree-level';
+            container.appendChild(firstLevelContainer);
+            bstRenderRecursive(bstRoot, firstLevelContainer);
+        }
+
+
+        function bstInsertNode(node, data) {
+            if (node === null) {
+                return { data: data, left: null, right: null };
+            }
+            if (data < node.data) {
+                node.left = bstInsertNode(node.left, data);
+            } else if (data > node.data) {
+                node.right = bstInsertNode(node.right, data);
+            }
+            return node;
+        }
+
+        function bstInsert() {
+            const value = parseInt(document.getElementById('bstValue').value);
+            if (isNaN(value)) { bstLog('Invalid input.'); return; }
+            bstRoot = bstInsertNode(bstRoot, value);
+            bstLog(`Inserted ${value} into the BST.`);
+            bstRender();
+            bstCode(`
+void insert(int data) {
+    // ... (recursive or iterative insertion logic)
+    // Example for recursive:
+    // root = insertRecursive(root, data);
+    // TreeNode* insertRecursive(TreeNode* node, int data) {
+    //     if (node == nullptr) return new TreeNode(data);
+    //     if (data < node->data) node->left = insertRecursive(node->left, data);
+    //     else if (data > node->data) node->right = insertRecursive(node->right, data);
+    //     return node;
+    // }
+}`);
+        }
+        
+        function bstSearch(node, data) {
+            if (node === null || node.data === data) {
+                return node;
+            }
+            if (data < node.data) {
+                return bstSearch(node.left, data);
+            }
+            return bstSearch(node.right, data);
+        }
+
+        function bstSearchP() {
+            const value = parseInt(document.getElementById('bstValue').value);
+            if (isNaN(value)) { bstLog('Invalid input.'); return; }
+            const foundNode = bstSearch(bstRoot, value);
+            if (foundNode) {
+                bstLog(`Found ${value} in the BST.`);
+            } else {
+                bstLog(`${value} not found in the BST.`);
+            }
+            bstCode(`
+bool search(int data) const {
+    TreeNode* current = root;
+    while (current != nullptr) {
+        if (data == current->data) return true;
+        else if (data < current->data) current = current->left;
+        else current = current->right;
+    }
+    return false;
+}`);
+        }
+
+        function bstFindMin(node) {
+            while(node && node.left !== null) node = node.left;
+            return node;
+        }
+
+        function bstDeleteNodeRecursive(node, data) {
+            if (node === null) return null;
+
+            if (data < node.data) {
+                node.left = bstDeleteNodeRecursive(node.left, data);
+            } else if (data > node.data) {
+                node.right = bstDeleteNodeRecursive(node.right, data);
+            } else { // Node to be deleted found
+                if (node.left === null) return node.right;
+                if (node.right === null) return node.left;
+
+                // Node with two children
+                let temp = bstFindMin(node.right);
+                node.data = temp.data;
+                node.right = bstDeleteNodeRecursive(node.right, temp.data);
+            }
+            return node;
+        }
+        
+        function bstDeleteP() {
+            const value = parseInt(document.getElementById('bstValue').value);
+            if (isNaN(value)) { bstLog('Invalid input.'); return; }
+            bstRoot = bstDeleteNodeRecursive(bstRoot, value);
+            bstLog(`Attempted to delete ${value}.`);
+            bstRender();
+             bstCode(`
+TreeNode* deleteNodeRecursive(TreeNode* rootNode, int data) {
+    // ... (logic for leaf, one child, two children cases)
+    // Example for two children (using inorder successor):
+    // TreeNode* temp = findMin(rootNode->right);
+    // rootNode->data = temp->data;
+    // rootNode->right = deleteNodeRecursive(rootNode->right, temp->data);
+}`);
+        }
+
+        let traversalResult = [];
+        function bstInorderRecursive(node) {
+            if (node !== null) {
+                bstInorderRecursive(node.left);
+                traversalResult.push(node.data);
+                bstInorderRecursive(node.right);
+            }
+        }
+        function bstInorder() {
+            traversalResult = [];
+            bstInorderRecursive(bstRoot);
+            bstLog(`Inorder Traversal: ${traversalResult.join(', ')}`);
+            bstCode(`
+void inorderTraversal(TreeNode* node) const {
+    if (node != nullptr) {
+        inorderTraversal(node->left);
+        std::cout << node->data << " ";
+        inorderTraversal(node->right);
+    }
+}`);
+        }
+        // Similar for Preorder and Postorder
+        function bstPreorderRecursive(node) {
+            if (node !== null) {
+                traversalResult.push(node.data);
+                bstPreorderRecursive(node.left);
+                bstPreorderRecursive(node.right);
+            }
+        }
+        function bstPreorder() {
+            traversalResult = [];
+            bstPreorderRecursive(bstRoot);
+            bstLog(`Preorder Traversal: ${traversalResult.join(', ')}`);
+            bstCode(`
+void preorderTraversal(TreeNode* node) const {
+    if (node != nullptr) {
+        std::cout << node->data << " ";
+        preorderTraversal(node->left);
+        preorderTraversal(node->right);
+    }
+}`);
+        }
+
+        function bstPostorderRecursive(node) {
+            if (node !== null) {
+                bstPostorderRecursive(node.left);
+                bstPostorderRecursive(node.right);
+                traversalResult.push(node.data);
+            }
+        }
+        function bstPostorder() {
+            traversalResult = [];
+            bstPostorderRecursive(bstRoot);
+            bstLog(`Postorder Traversal: ${traversalResult.join(', ')}`);
+            bstCode(`
+void postorderTraversal(TreeNode* node) const {
+    if (node != nullptr) {
+        postorderTraversal(node->left);
+        postorderTraversal(node->right);
+        std::cout << node->data << " ";
+    }
+}`);
+        }
+
+
+        // --- Graph Logic ---
+        let graphAdjList = {}; // Using an object as an adjacency list
+        const graphLog = (msg) => logOperation('graphLogOutput', msg);
+        const graphCode = (code) => displayCode('graphCodeOutput', code);
+
+        function graphRender() { // Simplified: just shows vertices
+            const container = document.getElementById('graphVisualContainer');
+            container.innerHTML = '';
+            if (Object.keys(graphAdjList).length === 0) {
+                container.textContent = 'Graph is empty.';
+                return;
+            }
+            let xOffset = 20, yOffset = 20, count = 0;
+            for (const vertex in graphAdjList) {
+                const vertexDiv = document.createElement('div');
+                vertexDiv.className = 'graph-vertex';
+                vertexDiv.textContent = vertex;
+                vertexDiv.style.left = `${xOffset + (count % 5) * 70}px`;
+                vertexDiv.style.top = `${yOffset + Math.floor(count / 5) * 70}px`;
+                container.appendChild(vertexDiv);
+                count++;
+            }
+            // Edge drawing is complex without canvas/svg, so omitted for this basic HTML/CSS viz
+        }
+
+        function graphAddVertexP() {
+            const value = parseInt(document.getElementById('graphVertexValue').value);
+            if (isNaN(value)) { graphLog('Invalid vertex ID.'); return; }
+            if (!graphAdjList[value]) {
+                graphAdjList[value] = [];
+                graphLog(`Added vertex ${value}.`);
+                graphRender();
+            } else {
+                graphLog(`Vertex ${value} already exists.`);
+            }
+            graphCode(`
+void addVertex(int id) {
+    if (adjList.find(id) == adjList.end()) {
+        adjList[id] = {};
+    }
+}`);
+        }
+
+        function graphAddEdgeP() {
+            const from = parseInt(document.getElementById('graphEdgeFrom').value);
+            const to = parseInt(document.getElementById('graphEdgeTo').value);
+            if (isNaN(from) || isNaN(to)) { graphLog('Invalid vertex ID for edge.'); return; }
+
+            if (!graphAdjList[from]) graphAdjList[from] = [];
+            if (!graphAdjList[to]) graphAdjList[to] = [];
+
+            // Add edge (undirected)
+            if (!graphAdjList[from].includes(to)) graphAdjList[from].push(to);
+            if (!graphAdjList[to].includes(from)) graphAdjList[to].push(from);
+            
+            graphLog(`Added edge between ${from} and ${to}.`);
+            graphRender(); // Re-render to show new vertices if they were implicitly added
+            graphCode(`
+void addEdge(int from, int to) {
+    // Ensure vertices exist (or add them)
+    // adjList[from].push_back(to);
+    // adjList[to].push_back(from); // For undirected
+}`);
+        }
+        
+        let graphTraversalResult = [];
+        let visitedDFS;
+        function graphDfsRecursive(vertex) {
+            visitedDFS[vertex] = true;
+            graphTraversalResult.push(vertex);
+            if (graphAdjList[vertex]) {
+                for (const neighbor of graphAdjList[vertex]) {
+                    if (!visitedDFS[neighbor]) {
+                        graphDfsRecursive(neighbor);
+                    }
+                }
+            }
+        }
+
+        function graphDFSP() {
+            const startVertex = parseInt(document.getElementById('graphStartVertex').value);
+            if (isNaN(startVertex) || !graphAdjList[startVertex]) {
+                graphLog('Invalid start vertex for DFS or vertex not in graph.');
+                return;
+            }
+            graphTraversalResult = [];
+            visitedDFS = {};
+            Object.keys(graphAdjList).forEach(v => visitedDFS[v] = false);
+            
+            graphDfsRecursive(startVertex);
+            graphLog(`DFS from ${startVertex}: ${graphTraversalResult.join(', ')}`);
+            graphCode(`
+void DFS(int startVertex) {
+    std::map<int, bool> visited;
+    // ... (recursive or iterative DFS logic)
+    // dfsRecursive(startVertex, visited);
+}`);
+        }
+
+        function graphBFSP() {
+            const startVertex = parseInt(document.getElementById('graphStartVertex').value);
+            if (isNaN(startVertex) || !graphAdjList[startVertex]) {
+                graphLog('Invalid start vertex for BFS or vertex not in graph.');
+                return;
+            }
+            graphTraversalResult = [];
+            let visited = {};
+            Object.keys(graphAdjList).forEach(v => visited[v] = false);
+            let q = [];
+
+            visited[startVertex] = true;
+            q.push(startVertex);
+
+            while(q.length > 0) {
+                let currentVertex = q.shift();
+                graphTraversalResult.push(currentVertex);
+
+                if (graphAdjList[currentVertex]) {
+                    for (const neighbor of graphAdjList[currentVertex]) {
+                        if (!visited[neighbor]) {
+                            visited[neighbor] = true;
+                            q.push(neighbor);
+                        }
+                    }
+                }
+            }
+            graphLog(`BFS from ${startVertex}: ${graphTraversalResult.join(', ')}`);
+            graphCode(`
+void BFS(int startVertex) {
+    std::map<int, bool> visited;
+    std::queue<int> q;
+    // ... (BFS logic using a queue)
+}`);
+        }
+
+
+        // Initial renders
+        llRender();
+        stackRender();
+        queueRender();
+        bstRender();
+        graphRender();
+    </script>
+</body>
+</html>
